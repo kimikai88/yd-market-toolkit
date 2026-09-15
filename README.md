@@ -8,6 +8,8 @@ YD Market Toolkit 是一套開源的 TradingView 市場趨勢觀察工具，將 
 
 > 本專案只提供技術分析與程式設計範例，不構成投資建議、獲利保證或交易招攬。
 
+![YD Market Toolkit dashboard preview](assets/dashboard-preview.png)
+
 ### 功能
 
 - EMA 21／65／200 趨勢結構
