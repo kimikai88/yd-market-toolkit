@@ -1,0 +1,103 @@
+//@version=6
+indicator("YD Market Toolkit — Open Source", shorttitle="YD Toolkit OSS", overlay=true, max_labels_count=100)
+
+// Open-source educational edition. No proprietary cup-and-handle logic is included.
+
+groupTrend = "趨勢 Trend"
+fastLen = input.int(21, "快速 EMA", minval=1, group=groupTrend)
+midLen = input.int(65, "中期 EMA", minval=2, group=groupTrend)
+slowLen = input.int(200, "長期 EMA", minval=3, group=groupTrend)
+
+groupBands = "布林通道 Bollinger Bands"
+bbLen = input.int(20, "週期", minval=2, group=groupBands)
+bbMult = input.float(2.0, "標準差倍數", minval=0.1, step=0.1, group=groupBands)
+
+groupMomentum = "動能與量能 Momentum & Volume"
+rsiLen = input.int(14, "RSI 週期", minval=2, group=groupMomentum)
+rsiStrong = input.float(52.0, "轉強 RSI 門檻", minval=1, maxval=99, group=groupMomentum)
+rsiWeak = input.float(45.0, "弱勢 RSI 門檻", minval=1, maxval=99, group=groupMomentum)
+volLen = input.int(20, "成交量均線週期", minval=1, group=groupMomentum)
+volRatioMin = input.float(1.0, "轉強最低量比", minval=0, step=0.1, group=groupMomentum)
+
+groupSignal = "訊號 Signals"
+cooldownBars = input.int(10, "訊號冷卻 K 棒", minval=0, group=groupSignal)
+showSignals = input.bool(true, "顯示訊號", group=groupSignal)
+
+groupDisplay = "顯示 Display"
+showBands = input.bool(true, "顯示布林通道", group=groupDisplay)
+showDashboard = input.bool(true, "顯示多週期面板", group=groupDisplay)
+
+emaFast = ta.ema(close, fastLen)
+emaMid = ta.ema(close, midLen)
+emaSlow = ta.ema(close, slowLen)
+
+bbBasis = ta.sma(close, bbLen)
+bbDev = ta.stdev(close, bbLen) * bbMult
+bbUpper = bbBasis + bbDev
+bbLower = bbBasis - bbDev
+
+rsiValue = ta.rsi(close, rsiLen)
+avgVolume = ta.sma(volume, volLen)
+volumeRatio = avgVolume > 0 ? volume / avgVolume : 0.0
+
+bullStructure = emaFast > emaMid and emaMid > emaSlow and close > emaFast
+rawStrengthening = ta.crossover(emaFast, emaMid) and close > emaSlow and rsiValue >= rsiStrong and volumeRatio >= volRatioMin
+rawWeakening = ta.crossunder(close, emaFast) or ta.crossunder(rsiValue, rsiWeak)
+
+var int lastStrengthBar = na
+var int lastWeakBar = na
+
+strengthening = rawStrengthening and (na(lastStrengthBar) or bar_index - lastStrengthBar > cooldownBars)
+weakening = rawWeakening and (na(lastWeakBar) or bar_index - lastWeakBar > cooldownBars)
+
+if strengthening
+    lastStrengthBar := bar_index
+if weakening
+    lastWeakBar := bar_index
+
+plot(emaFast, "EMA 21", color=color.new(color.aqua, 0), linewidth=2)
+plot(emaMid, "EMA 65", color=color.new(color.orange, 0), linewidth=2)
+plot(emaSlow, "EMA 200", color=color.new(color.fuchsia, 0), linewidth=2)
+
+pUpper = plot(showBands ? bbUpper : na, "BB Upper", color=color.new(color.blue, 55))
+pLower = plot(showBands ? bbLower : na, "BB Lower", color=color.new(color.blue, 55))
+plot(showBands ? bbBasis : na, "BB Basis", color=color.new(color.gray, 60))
+fill(pUpper, pLower, color=color.new(color.blue, 94), title="BB Fill")
+
+plotshape(showSignals and strengthening, title="YD 轉強", text="轉強", style=shape.labelup, location=location.belowbar, color=color.new(color.lime, 0), textcolor=color.black, size=size.tiny)
+plotshape(showSignals and weakening, title="YD 短線轉弱", text="短弱", style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.tiny)
+
+alertcondition(strengthening, title="YD 轉強", message="{{ticker}} 出現公開版轉強條件，週期：{{interval}}，收盤：{{close}}")
+alertcondition(weakening, title="YD 短線轉弱", message="{{ticker}} 出現公開版短線轉弱條件，週期：{{interval}}，收盤：{{close}}")
+
+f_direction() =>
+    localFast = ta.ema(close, fastLen)
+    localMid = ta.ema(close, midLen)
+    localSlow = ta.ema(close, slowLen)
+    localFast > localMid and close > localSlow ? 1 : localFast < localMid and close < localSlow ? -1 : 0
+
+dir1H = request.security(syminfo.tickerid, "60", f_direction(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+dir4H = request.security(syminfo.tickerid, "240", f_direction(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+dir1D = request.security(syminfo.tickerid, "D", f_direction(), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+f_dirText(direction) => direction == 1 ? "偏多" : direction == -1 ? "偏空" : "盤整"
+f_dirColor(direction) => direction == 1 ? color.new(color.green, 10) : direction == -1 ? color.new(color.red, 10) : color.new(color.gray, 35)
+
+currentState = strengthening ? "轉強" : bullStructure ? "偏多" : rawWeakening ? "短線弱" : "觀察"
+currentColor = strengthening ? color.lime : bullStructure ? color.green : rawWeakening ? color.red : color.gray
+
+var table dashboard = table.new(position.top_right, 2, 6, border_width=1)
+if barstate.islast and showDashboard
+    table.cell(dashboard, 0, 0, "YD Toolkit", bgcolor=color.new(color.black, 0), text_color=color.white)
+    table.cell(dashboard, 1, 0, currentState, bgcolor=currentColor, text_color=color.white)
+    table.cell(dashboard, 0, 1, "1H", bgcolor=color.new(color.black, 10), text_color=color.white)
+    table.cell(dashboard, 1, 1, f_dirText(dir1H), bgcolor=f_dirColor(dir1H), text_color=color.white)
+    table.cell(dashboard, 0, 2, "4H", bgcolor=color.new(color.black, 10), text_color=color.white)
+    table.cell(dashboard, 1, 2, f_dirText(dir4H), bgcolor=f_dirColor(dir4H), text_color=color.white)
+    table.cell(dashboard, 0, 3, "1D", bgcolor=color.new(color.black, 10), text_color=color.white)
+    table.cell(dashboard, 1, 3, f_dirText(dir1D), bgcolor=f_dirColor(dir1D), text_color=color.white)
+    table.cell(dashboard, 0, 4, "RSI", bgcolor=color.new(color.black, 10), text_color=color.white)
+    table.cell(dashboard, 1, 4, str.tostring(rsiValue, "#.0"), bgcolor=color.new(color.navy, 15), text_color=color.white)
+    table.cell(dashboard, 0, 5, "量比", bgcolor=color.new(color.black, 10), text_color=color.white)
+    table.cell(dashboard, 1, 5, str.tostring(volumeRatio, "#.00"), bgcolor=volumeRatio >= volRatioMin ? color.new(color.green, 15) : color.new(color.gray, 35), text_color=color.white)
+
