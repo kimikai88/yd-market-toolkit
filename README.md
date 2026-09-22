@@ -41,6 +41,23 @@ YD Market Toolkit 是一套開源的 TradingView 市場趨勢觀察工具，將 
 
 完整條件可直接查看原始碼；這正是本專案作為開源教學工具的目的。
 
+### 多週期資料與 repaint 說明
+
+- 1H、4H 與日線狀態由 TradingView 的多週期資料取得。
+- 尚未收盤的高週期 K 棒，其數值可能隨盤中價格變動；這是即時資料更新，不代表歷史訊號被竄改。
+- 判讀或驗證訊號時，建議以 K 棒收盤後的狀態為準。
+- 本公開版不使用未來資料或 lookahead 技巧提前取得尚未完成的高週期結果。
+
+### 可重現檢查清單
+
+1. 將指標加入任一具有 1H、4H 與日線資料的商品圖表。
+2. 確認 EMA、Bollinger Bands、RSI、量能與多週期面板正常顯示。
+3. 切換時間週期後，確認面板沒有編譯或執行錯誤。
+4. 在 K 棒收盤前後比較高週期狀態，記錄即時變動與收盤確認結果。
+5. 建立「YD 轉強」及「YD 短線轉弱」Alert，確認條件可供選擇。
+
+若發現可重現問題，請附上商品、交易所、圖表週期、時區、發生時間與畫面截圖建立 Issue。
+
 ### 專案界線
 
 此 repo 不包含：
@@ -87,6 +104,23 @@ YD Market Toolkit is an open-source TradingView indicator that combines EMA stru
 ### Install
 
 Copy [`src/YD_Market_Toolkit.pine`](src/YD_Market_Toolkit.pine) into TradingView Pine Editor, save it, and add it to a chart.
+
+### Multi-timeframe and repainting notes
+
+- The 1H, 4H, and 1D states use TradingView multi-timeframe data.
+- Values from an unclosed higher-timeframe bar can change intrabar as live prices update.
+- For reproducible validation, evaluate signals after the relevant bars close.
+- The public script does not intentionally use future data or lookahead behavior to obtain unfinished higher-timeframe results early.
+
+### Reproducible verification checklist
+
+1. Add the indicator to a symbol with 1H, 4H, and daily history.
+2. Confirm that the EMA, Bollinger Bands, RSI, volume, and dashboard render without errors.
+3. Change chart timeframes and confirm that the script continues to run.
+4. Compare higher-timeframe states before and after bar close and record the confirmed result.
+5. Confirm that the “YD Strengthening” and “YD Short-term Weakening” alert conditions are available.
+
+When reporting a reproducible issue, include the symbol, exchange, chart timeframe, timezone, occurrence time, and a screenshot.
 
 This software is provided for education and technical-analysis research only. It is not financial advice and does not guarantee results.
 
